@@ -1,2 +1,2 @@
 # Alvis
-A personal AI assistance using llama.cpp in native C++
+A personal AI assistant using llama.cpp in native C++
