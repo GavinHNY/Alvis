@@ -1,2 +1,2 @@
 # Alvis
-A personal AI assistance using Phi-4-mini
+A personal AI assistance using llama.cpp in native C++
