@@ -2,5 +2,5 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="Alvis/Alvis.vcxproj" />
+  <Project Path="Alvis/Alvis.vcxproj" Id="970187bb-32a8-47b8-8bb9-990122ef4404" />
 </Solution>

@@ -19,7 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Llm.cpp" />
     <ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Llm.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
@@ -51,7 +55,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -120,16 +124,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);ProjectDir=$(ProjectDir);SolutionDir=$(SolutionDir)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)external\llama.cpp\include;$(SolutionDir)external\llama.cpp\ggml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)external\llama.cpp\include;$(SolutionDir)external\llama.cpp\ggml\include;$(SolutionDir)external\llama.cpp\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)external\llama.cpp\build\ggml\src\ggml-cuda\Release;$(SolutionDir)external\llama.cpp\build\src\Release;$(SolutionDir)external\llama.cpp\build\ggml\src\Release;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llama.lib;ggml-cuda.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;cudart.lib;cublas.lib;cuda.lib;cudadevrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)external\llama.cpp\build\ggml\src\ggml-cuda\Release;$(SolutionDir)external\llama.cpp\build\src\Release;$(SolutionDir)external\llama.cpp\build\ggml\src\Release;$(CudaToolkitLibDir);$(SolutionDir)external\llama.cpp\build\common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>llama.lib;llama-common.lib;llama-common-base.lib;ggml-cuda.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;cudart.lib;cublas.lib;cuda.lib;cudadevrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -141,16 +145,16 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);ProjectDir=$(ProjectDir);SolutionDir=$(SolutionDir)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)external\llama.cpp\include;$(SolutionDir)external\llama.cpp\ggml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)external\llama.cpp\include;$(SolutionDir)external\llama.cpp\ggml\include;$(SolutionDir)external\llama.cpp\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)external\llama.cpp\build\ggml\src\ggml-cuda\Release;$(SolutionDir)external\llama.cpp\build\src\Release;$(SolutionDir)external\llama.cpp\build\ggml\src\Release;$(CudaToolkitLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llama.lib;ggml-cuda.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;cudart.lib;cublas.lib;cuda.lib;cudadevrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)external\llama.cpp\build\ggml\src\ggml-cuda\Release;$(SolutionDir)external\llama.cpp\build\src\Release;$(SolutionDir)external\llama.cpp\build\ggml\src\Release;$(CudaToolkitLibDir);$(SolutionDir)external\llama.cpp\build\common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>llama.lib;llama-common.lib;llama-common-base.lib;ggml-cuda.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;cudart.lib;cublas.lib;cuda.lib;cudadevrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
