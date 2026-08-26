@@ -1,10 +1,22 @@
 #include <iostream>
+#include <fstream>
 #include "Llm.h"
+#include "Database.h"
 
 
 
 int main() {
-	Llm* LLM = new Llm("..\\models\\gemma-4-E4B-it.gguf", "Your name is Alvis, An AI assistant made by Dragon. Your goal is to assist and chat with the user. Use short natual human spoken language so no emoji, and role play an actual human assistant but more as a friend. Use the LOW thinking system, think at a lower depth. Reply with a self introduction and ask for anything to help if you understand this.");
+	Database database("..\\models\\Alvis.db");
+
+
+
+
+	std::ifstream systemPromptFile("..\\models\\system_prompt.txt");
+	std::stringstream systemPromptBuf;
+	systemPromptBuf << systemPromptFile.rdbuf();
+	std::string systemPrompt = systemPromptBuf.str();
+
+	Llm* LLM = new Llm("..\\models\\gemma-4-E4B-it.gguf", systemPrompt, database);
 
 	bool running = true;
 
@@ -16,8 +28,17 @@ int main() {
 			if (prompt == "/bye" || prompt == "/exit"){
 				break;
 			}
-			std::string formattedPrompt = LLM->applyTemplate(prompt);
-			LLM->prompt(formattedPrompt, true);
+			if (prompt == "/clearChat" || prompt == "/deleteChat"){
+				database.deleteChat();
+				std::cout << "done!\n";
+				continue;
+			}
+			std::string formattedPrompt = LLM->applyTemplate(prompt, false, true);
+			//std::cout << formattedPrompt << std::endl;
+			if (LLM->prompt(formattedPrompt, true) == 1){
+				database.pushChat(0, 1, prompt);
+				database.pushChat(0, 0, LLM->getOutput());
+			}
 		}
 	}
 

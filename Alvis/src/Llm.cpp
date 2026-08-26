@@ -1,6 +1,6 @@
 #include "Llm.h"
 
-Llm::Llm(const std::string& model_path, const std::string &system_prompt){
+Llm::Llm(const std::string &model_path, const std::string &system_prompt, Database &database){
 	SetConsoleOutputCP(CP_UTF8);
 	SetConsoleCP(CP_UTF8);
 	llama_log_set([](ggml_log_level level, const char *text, void *user_data){}, nullptr);
@@ -34,8 +34,8 @@ Llm::Llm(const std::string& model_path, const std::string &system_prompt){
 	n_sysToken = -llama_tokenize(vocab, ready_sys_prompt.c_str(), ready_sys_prompt.length(), nullptr, 0, true, true);
 	//std::cout << "n_sysToken: " << n_sysToken << std::endl;
 	llama_context_params ctx_params = llama_context_default_params();
-	ctx_params.n_ctx = 8196;
-	ctx_params.n_batch = 8196;
+	ctx_params.n_ctx = 16384;
+	ctx_params.n_batch = 16384;
 	ctx_params.no_perf = false;
 	ctx = llama_init_from_model(model, ctx_params);
 
@@ -48,13 +48,16 @@ Llm::Llm(const std::string& model_path, const std::string &system_prompt){
 	sparam.no_perf = false;
 
 	smpl = llama_sampler_chain_init(sparam);
-	
+
 	llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
 	llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.8f));
 	llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
-	prompt(ready_sys_prompt, true);
+	if (prompt(ready_sys_prompt, true)){
+		database.pushChat(0, 0, getOutput());
+	}
 }
+
 
 
 
@@ -122,9 +125,11 @@ int Llm::prompt(std::string &formatedPrompt, bool print){
 			GGML_ABORT("failed to convert token to piece\n");
 		}
 		std::string piece(buf, n);
-		output = output + piece;
-		if (print && outputAnswer){
+		if (outputAnswer){
+			output = output + piece;
+			if (print){
 			std::cout << piece.c_str()<< std::flush;
+			}
 		}
 		if (piece == "<channel|>") outputAnswer = true;
 

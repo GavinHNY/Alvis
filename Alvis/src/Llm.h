@@ -1,6 +1,7 @@
 #pragma once
-//#include "llama.h"
-#include "llama-cpp.h"
+#include "llama.h"
+#include "Database.h"
+//#include "llama-cpp.h"
 #include "common\chat.h"
 #include <string>
 #include <iostream>
@@ -31,7 +32,7 @@ private:
 	
 
 public:
-	Llm(const std::string& model_path, const std::string& system_prompt);
+	Llm(const std::string& model_path, const std::string& system_prompt, Database &database);
 	~Llm();
 
 	std::string applyTemplate(const std::string prompt, bool is_system = false, bool add_generation_prompt = false);
