@@ -17,8 +17,8 @@ Database::Database(std::string db_path){
 CREATE TABLE IF NOT EXISTS chatHistory(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 channelId INTEGER NOT NULL,
-userId INTEGER NOT NULL,
 datetime TEXT NOT NULL,
+userId INTEGER NOT NULL,
 content TEXT NOT NULL
 );)";
 
@@ -36,7 +36,7 @@ Database::~Database(){
 
 int Database::pushChat(int channelId, int userId, std::string content){
 	std::string sql;
-	sql = "insert into chatHistory values(NULL, ?, ?, datetime(), ?);";
+	sql = "insert into chatHistory values(NULL, ?, datetime(), ?, ?);";
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
 	sqlite3_bind_int(stmt, 1, channelId);
@@ -53,9 +53,34 @@ int Database::pushChat(int channelId, int userId, std::string content){
 	return 0;
 }
 
-int Database::deleteChat(){
-	sqlite3_exec(db, "DROP TABLE chatHistory;", 0, 0, NULL);
+int Database::deleteChat(int channelId){
+	std::string sql;
+	sql = std::format("DELETE FROM chatHistory WHERE channelId = {};", channelId);
+	sqlite3_exec(db, sql.c_str(), 0, 0, NULL);
 	return 0;
+}
+
+std::string Database::readChat(int channelId, int from){
+	std::string sql;
+	sql = std::format("SELECT datetime, userId, content FROM (SELECT * FROM chatHistory WHERE channelId = {} ORDER BY id) LIMIT -1 OFFSET {};", channelId, from -1);
+	sqlite3_stmt *stmt;
+	int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		std::cerr << "Error: Could not read DB " << sqlite3_errmsg(db) << std::endl;
+		return "ERROR";
+	}
+
+
+	std::string chat = "";
+	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW){
+		std::string datetime = (char *)sqlite3_column_text(stmt, 0);
+		int userId = sqlite3_column_int(stmt, 1);
+		std::string content = (char *)sqlite3_column_text(stmt, 2);
+
+		chat += std::format("[{}] [{}]: {}\n", datetime, userId, content);
+	}
+
+	return chat;
 }
 
 

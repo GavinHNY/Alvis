@@ -2,5 +2,8 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="Alvis/Alvis.vcxproj" Id="970187bb-32a8-47b8-8bb9-990122ef4404" />
+  <Project Path="Alvis/Alvis.vcxproj" Id="970187bb-32a8-47b8-8bb9-990122ef4404">
+    <BuildDependency Project="external/llama.cpp/build/src/llama.vcxproj" />
+  </Project>
+  <Project Path="external/llama.cpp/build/src/llama.vcxproj" Id="df8d4f14-1f6b-3239-a169-5b4833e4bb6f" />
 </Solution>

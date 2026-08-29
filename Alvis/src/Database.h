@@ -13,6 +13,7 @@ public:
 	Database(std::string db_path);
 	~Database();
 	int pushChat(int channelId, int userId, std::string content);
-	int deleteChat();
+	int deleteChat(int channelId);
+	std::string readChat(int channelId, int from);
 };
 
