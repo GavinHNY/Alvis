@@ -26,6 +26,7 @@ int main() {
 	LLM.emplace_back("..\\models\\gemma-4-E4B-it.gguf", systemPrompt, &database, 1);
 	database.pushChat(1, -1, systemPrompt);
 	database.pushChat(1, 0, LLM.at(0).getOutput());
+	std::cout << std::endl;
 	//main chat loop
 	bool running = true;
 
@@ -38,7 +39,7 @@ int main() {
 				break;
 			}
 			if (prompt == "/clearChat" || prompt == "/deleteChat"){
-				database.deleteChat(0);
+				database.deleteChat(1);
 				LLM.at(0).deleteMemory();
 				std::cout << "done!\n";
 				continue;
@@ -56,6 +57,7 @@ int main() {
 			if (LLM.at(0).prompt(formattedPrompt, true) == 1){
 				database.pushChat(1, 1, prompt);
 				database.pushChat(1, 0, LLM.at(0).getOutput());
+				std::cout << std::endl;
 			}
 		}
 	}

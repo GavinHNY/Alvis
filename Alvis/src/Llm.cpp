@@ -118,12 +118,20 @@ int Llm::prompt(std::string &formatedPrompt, bool print){
 	output = "";
 	llama_batch gen_batch = llama_batch_init(1, 0, 1);
 
+	int startThinking = 0;
+	int endThinking;
+	int current_ctx;
+
+	bool thinking = false;
 	bool outputAnswer = false;
+	std::string allResponse = "";
 	while (true){
 		n_ctx = llama_n_ctx(ctx);
-		n_ctx_used = llama_memory_seq_pos_max(llama_get_memory(ctx), channelId) + 1;
+		current_ctx = llama_memory_seq_pos_max(mem, channelId);
+		n_ctx_used = current_ctx + 1;
 		if (n_ctx_used + gen_batch.n_tokens > n_ctx){
 			freeKVAndInjectSummary();
+			current_ctx = llama_memory_seq_pos_max(mem, channelId);
 			std::cout << "CTX overload, freeingKV\n";
 		}
 		nextTokenId = llama_sampler_sample(smpl, ctx, -1);
@@ -140,13 +148,27 @@ int Llm::prompt(std::string &formatedPrompt, bool print){
 			GGML_ABORT("failed to convert token to piece\n");
 		}
 		std::string piece(buf, n);
+		allResponse += piece;
+
+		if (piece == "<|channel>"){
+			thinking = true;
+			startThinking = startThinking == 0? current_ctx: startThinking;
+			outputAnswer = false;
+
+		}
+
 		if (outputAnswer){
 			output = output + piece;
 			if (print){
 				std::cout << piece.c_str() << std::flush;
 			}
 		}
-		if (piece == "<channel|>") outputAnswer = true;
+
+		if (piece == "<channel|>" && thinking){
+			thinking = false;
+			endThinking = current_ctx;
+			outputAnswer = true;
+		}
 
 		//batch = llama_batch_get_one(&nextTokenId, 1);
 		//batch = llama_batch_init(1, 0, 1);
@@ -164,8 +186,20 @@ int Llm::prompt(std::string &formatedPrompt, bool print){
 	}
 	
 	llama_batch_free(gen_batch);
-	std::cout<< "\nctx:" << n_ctx_used << "/" << n_ctx << std::endl <<std::endl;
+	current_ctx = llama_memory_seq_pos_max(mem, channelId);
+	//std::cout << "\n ctx before strip:" << llama_memory_seq_pos_max(mem, channelId) + 1 << "/" << n_ctx << std::endl << std::endl;
+	//strip thought from KV
+	//std::cout << "startThinking: " << startThinking << " endThinking: " << endThinking << std::endl;
+	if (endThinking == 0){
+		llama_memory_seq_rm(mem, channelId, startThinking, endThinking + 1);
+		llama_memory_seq_add(mem, channelId, endThinking + 1, -1, -(endThinking - startThinking + 1));
+		std::cerr << "\n \nError: No output" << allResponse << std::endl;
+	}
 
+	//std::cout << startThinking - endThinking - 1;
+
+	//std::cout<< "\nctx:" << llama_memory_seq_pos_max(mem, channelId) + 1 << "/" << n_ctx << std::endl <<std::endl;
+	std::cout << std::endl;
 
 	return 1;
 }
@@ -180,7 +214,7 @@ int Llm::freeKVAndInjectSummary(){
 	
 	llama_memory_seq_rm(mem, channelId, n_sysToken, n_ctx - 100);
 	injectSummary(summarizeChat(database->readChat(channelId, 2)));
-	n_ctx_used = llama_memory_seq_pos_max(mem, channelId);
+	n_ctx_used = llama_memory_seq_pos_max(mem, channelId) + 1;
 	std::cout << "\n Free ed KV KV now:" << n_ctx_used << std::endl;
 
 	return 0;
@@ -191,8 +225,9 @@ std::string Llm::summarizeChat(std::string chat_history){
 
 	std::string formmated = applyTemplate(prompt, false, true);
 	//std::cout << formmated << std::endl;
-	std::vector<llama_token> p_token(8192);
-	int n_p = llama_tokenize(vocab, formmated.c_str(), formmated.length(), p_token.data(), p_token.size(), true, true);
+	int n_p = -llama_tokenize(vocab, formmated.c_str(), formmated.length(), nullptr, 0, true, true);
+	std::vector<llama_token> p_token(n_p + 16);
+	llama_tokenize(vocab, formmated.c_str(), formmated.length(), p_token.data(), p_token.size(), true, true);
 	p_token.resize(n_p);
 	//std::cout << "n_p: " << n_p << std::endl;
 	llama_batch batch = llama_batch_init(n_p, 0, 1);
@@ -252,7 +287,7 @@ std::string Llm::summarizeChat(std::string chat_history){
 
 
 	llama_memory_seq_rm(mem, 0, -1, -1);
-	std::cout << summary <<std::endl;
+	//std::cout << summary <<std::endl;
 	return summary;
 }
 
@@ -292,7 +327,3 @@ Llm::~Llm(){
 	llama_free(ctx);
 	llama_backend_free();
 }
-
-
-
-
