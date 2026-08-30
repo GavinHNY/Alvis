@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <map>
 #include <Windows.h>
 
 
@@ -13,11 +14,14 @@ class Llm
 private:
 	int channelId;
 	std::string sysPrompt;
+	std::string sumSysPrompt;
 	std::string modelPath;
 
-	int n_ctx = 8192;
+	int n_ctx = 32768;
 	int n_ctx_used;
 	int n_sysToken;
+	int n_sumSysToken;
+	int summarizedChat;
 
 	Database *database;
 
@@ -35,7 +39,7 @@ private:
 		std::string content;
 	};
 
-	std::string output;
+	std::map<int, std::string> output;
 
 	int injectSummary(std::string summarized_chat);
 
@@ -49,12 +53,12 @@ public:
 
 
 
-	Llm(const std::string& model_path, const std::string& system_prompt, Database *database, int channelId, bool add_generation_prompt = true);
+	Llm(const std::string& model_path, const std::string& system_prompt, const std::string &sumSystem_prompt, Database *database, int channelId, bool add_generation_prompt = true);
 	~Llm();
 
-	std::string applyTemplate(const std::string prompt, bool is_system = false, bool add_generation_prompt = false);
-	int prompt(std::string &prompt, bool print);
-	std::string getOutput();
+	std::string applyTemplate(const std::string prompt, bool is_system = false, bool add_generation_prompt = true);
+	int prompt(int seq, std::string &prompt, bool print = true, bool generate_output = true);
+	std::string getOutput(int channel);
 	
 	int freeKVAndInjectSummary();
 	std::string summarizeChat(std::string chatHistory);

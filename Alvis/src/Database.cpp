@@ -60,9 +60,25 @@ int Database::deleteChat(int channelId){
 	return 0;
 }
 
+int Database::getNRow(std::string table, std::string conditions){
+	std::string sql;
+	sql = std::format("SELECT COUNT(*) FROM {} {};", table, conditions);
+	sqlite3_stmt *stmt;
+	rc = sqlite3_prepare_v2(db, sql.c_str(), - 1, &stmt, NULL);
+	if (rc != SQLITE_OK){
+		std::cerr << "Error: Could not read DB " << sqlite3_errmsg(db) << std::endl;
+		std::cout << sql << std::endl;
+		return -1;
+	}
+	sqlite3_step(stmt);
+	int nRow = sqlite3_column_int(stmt, 0);
+	sqlite3_finalize(stmt);
+	return nRow;
+}
+
 std::string Database::readChat(int channelId, int from){
 	std::string sql;
-	sql = std::format("SELECT datetime, userId, content FROM (SELECT * FROM chatHistory WHERE channelId = {} ORDER BY id) LIMIT -1 OFFSET {};", channelId, from -1);
+	sql = std::format("SELECT id, datetime, userId, content FROM (SELECT * FROM chatHistory WHERE channelId = {} ORDER BY id) LIMIT -1 OFFSET {};", channelId, from -1);
 	sqlite3_stmt *stmt;
 	int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
 	if (rc != SQLITE_OK){
@@ -73,13 +89,14 @@ std::string Database::readChat(int channelId, int from){
 
 	std::string chat = "";
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW){
-		std::string datetime = (char *)sqlite3_column_text(stmt, 0);
-		int userId = sqlite3_column_int(stmt, 1);
-		std::string content = (char *)sqlite3_column_text(stmt, 2);
+		int id = sqlite3_column_int(stmt, 0);
+		std::string datetime = (char *)sqlite3_column_text(stmt, 1);
+		int userId = sqlite3_column_int(stmt, 2);
+		std::string content = (char *)sqlite3_column_text(stmt, 3);
 
-		chat += std::format("[{}] [{}]: {}\n", datetime, userId, content);
+		chat += std::format("[{}] [{}] [{}]: {}\n",id, datetime, userId, content);
 	}
-
+	sqlite3_finalize(stmt);
 	return chat;
 }
 

@@ -14,6 +14,7 @@ public:
 	~Database();
 	int pushChat(int channelId, int userId, std::string content);
 	int deleteChat(int channelId);
+	int getNRow(std::string table, std::string conditions = "");
 	std::string readChat(int channelId, int from);
 };
 
