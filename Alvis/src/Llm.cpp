@@ -1,9 +1,15 @@
 #include "Llm.h"
+void custom_log_callback(enum ggml_log_level level, const char *text, void *user_data){
+	// Show only error messages
+	if (level == GGML_LOG_LEVEL_ERROR){
+		std::cerr << "[llama.cpp Error] " << text;
+	}
+}
 
 Llm::Llm(const std::string &model_path, const std::string &system_prompt, const std::string &sumSystem_prompt, Database *database, int channel_id, bool add_generation_prompt){
 	SetConsoleOutputCP(CP_UTF8);
 	SetConsoleCP(CP_UTF8);
-	llama_log_set([](ggml_log_level level, const char *text, void *user_data){}, nullptr);
+	llama_log_set(custom_log_callback, nullptr);
 	llama_backend_init();
 
 	channelId = channel_id;
@@ -48,7 +54,6 @@ Llm::Llm(const std::string &model_path, const std::string &system_prompt, const 
 		return;
 	}
 	
-	mem = llama_get_memory(ctx);
 
 	auto sparam = llama_sampler_chain_default_params();
 	sparam.no_perf = false;
@@ -58,20 +63,35 @@ Llm::Llm(const std::string &model_path, const std::string &system_prompt, const 
 	llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
 	llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.8f));
 	llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
-	
+	mem = llama_get_memory(ctx);
 
 	//std::cout << ready_sys_prompt << std::endl;
-	summarizedChat = 1;
+	
 
-	std::string ready_sys_prompt = applyTemplate(system_prompt, true, add_generation_prompt);
-	n_sysToken = -llama_tokenize(vocab, ready_sys_prompt.c_str(), ready_sys_prompt.length(), nullptr, 0, true, true);
-	prompt(channelId, ready_sys_prompt);
+	size_t n_tokens_out = 0;
+	if (llama_state_load_file(ctx, ctxBin.c_str(), nullptr, 0, &n_tokens_out)){
+		historyTokens.resize(n_tokens_out);
+		n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
+		std::fstream file;
+		file.open("..\\models\\bin\\data.bin", std::ios::in | std::ios::binary);
+		file.read(reinterpret_cast<char *>(&n_sysToken), sizeof(n_sysToken));
+		file.read(reinterpret_cast<char *>(&n_sumSysToken), sizeof(n_sysToken));
+		file.read(reinterpret_cast<char *>(&summarizedChat), sizeof(n_sysToken));
 
-	std::string ready_sumSys_prompt = applyTemplate(sumSystem_prompt, true, false);
-	n_sumSysToken = -llama_tokenize(vocab, ready_sumSys_prompt.c_str(), ready_sumSys_prompt.length(), nullptr, 0, true, true);
-	prompt(0, ready_sumSys_prompt, false, false);
+		std::cout << "ctx loaded, " << n_ctxUsed << "/" << n_ctx << std::endl;
+	} else{
+		std::string ready_sys_prompt = applyTemplate(system_prompt, true, add_generation_prompt);
+		n_sysToken = -llama_tokenize(vocab, ready_sys_prompt.c_str(), ready_sys_prompt.length(), nullptr, 0, true, true);
+		prompt(channelId, ready_sys_prompt);
+
+		std::string ready_sumSys_prompt = applyTemplate(sumSystem_prompt, true, false);
+		n_sumSysToken = -llama_tokenize(vocab, ready_sumSys_prompt.c_str(), ready_sumSys_prompt.length(), nullptr, 0, true, true);
+		prompt(0, ready_sumSys_prompt, false, false);
+		summarizedChat = 1;
+	}
+	
+
 }
-
 
 
 
@@ -103,12 +123,12 @@ int Llm::prompt(int seq, std::string &prompt, bool print, bool generate_output){
 		GGML_ABORT( "Error: unable to tokenize");
 	}
 	tokens.resize(n_tokens);
-	n_ctx_used = llama_memory_seq_pos_max(mem, seq) + 1;
+	n_ctxUsed = llama_memory_seq_pos_max(mem, seq) + 1;
 	llama_batch batch = llama_batch_init(n_tokens, 0, 1);
 	batch.n_tokens = n_tokens;
 	for (int i = 0; i < n_tokens; i++){
 		batch.token[i] = tokens[i];
-		batch.pos[i] = n_ctx_used + i;
+		batch.pos[i] = n_ctxUsed + i;
 		batch.n_seq_id[i] = 1;
 		batch.seq_id[i][0] = seq;
 		batch.logits[i] = (i == (n_tokens - 1)) ? 1 : 0;
@@ -141,12 +161,14 @@ int Llm::prompt(int seq, std::string &prompt, bool print, bool generate_output){
 	while (true){
 		n_ctx = llama_n_ctx(ctx);
 		current_ctx = llama_memory_seq_pos_max(mem, seq);
-		n_ctx_used = current_ctx + 1;
-		if (n_ctx_used + gen_batch.n_tokens > n_ctx){
+		n_ctxUsed = current_ctx + 1;
+
+		if (n_ctxUsed + gen_batch.n_tokens > n_ctx/1.3){
 			freeKVAndInjectSummary();
 			current_ctx = llama_memory_seq_pos_max(mem, seq);
 			std::cout << "CTX overload, freeing KV\n";
 		}
+
 		nextTokenId = llama_sampler_sample(smpl, ctx, -1);
 		llama_sampler_accept(smpl, nextTokenId);
 
@@ -177,7 +199,7 @@ int Llm::prompt(int seq, std::string &prompt, bool print, bool generate_output){
 			}
 		}
 
-		if (piece == "<channel|>" && thinking){
+		if (piece == "<channel|>"){
 			thinking = false;
 			endThinking = current_ctx;
 			outputAnswer = true;
@@ -187,7 +209,7 @@ int Llm::prompt(int seq, std::string &prompt, bool print, bool generate_output){
 		//batch = llama_batch_init(1, 0, 1);
 		gen_batch.n_tokens = 1;
 		gen_batch.token[0] = nextTokenId;
-		gen_batch.pos[0] = n_ctx_used;
+		gen_batch.pos[0] = n_ctxUsed;
 		gen_batch.n_seq_id[0] = 1;
 		gen_batch.seq_id[0][0] = seq;
 		gen_batch.logits[0] = 1;
@@ -230,7 +252,7 @@ std::string Llm::getOutput(int channel){
 }
 
 int Llm::freeKVAndInjectSummary(){
-	
+
 	llama_memory_seq_rm(mem, channelId, n_sysToken, -1);
 
 	//llama_memory_seq_rm(mem, channelId, n_sysToken, llama_memory_seq_pos_max(mem, channelId) - 100 + 1);
@@ -238,8 +260,8 @@ int Llm::freeKVAndInjectSummary(){
 	injectSummary(summarizeChat(database->readChat(channelId, summarizedChat + 1)));
 	summarizedChat = database->getNRow("chatHistory", "WHERE channelId = " + std::to_string(channelId));
 	//std::cout << summarizedChat << std::endl;
-	n_ctx_used = llama_memory_seq_pos_max(mem, channelId) + 1;
-	std::cout << "\n Free ed KV KV now:" << n_ctx_used << std::endl;
+	n_ctxUsed = llama_memory_seq_pos_max(mem, channelId) + 1;
+	std::cout << "\n Free ed KV KV now:" << n_ctxUsed << std::endl;
 
 	return 0;
 }
@@ -251,79 +273,10 @@ std::string Llm::summarizeChat(std::string chatHistory){
 	return getOutput(0);
 }
 
-//std::string Llm::summarizeChat(std::string chat_history){
-//	std::string prompt = sumSysPrompt + chat_history;
-//
-//	std::string formmated = applyTemplate(prompt, true, true);
-//	//std::cout << formmated << std::endl;
-//	int n_p = -llama_tokenize(vocab, formmated.c_str(), formmated.length(), nullptr, 0, true, true);
-//	std::vector<llama_token> p_token(n_p + 16);
-//	llama_tokenize(vocab, formmated.c_str(), formmated.length(), p_token.data(), p_token.size(), true, true);
-//	p_token.resize(n_p);
-//	//std::cout << "n_p: " << n_p << std::endl;
-//	llama_batch batch = llama_batch_init(n_p, 0, 1);
-//	batch.n_tokens = n_p;
-//	for (int i = 0; i < n_p; i++){
-//		batch.token[i] = p_token[i];
-//		batch.pos[i] = i;
-//		batch.n_seq_id[i] = 1;
-//		batch.seq_id[i][0] = 0;
-//		batch.logits[i] = (i == (n_p - 1)) ? 1 : 0;
-//	}
-//	int ret = llama_decode(ctx, batch);
-//	if (ret != 0){
-//		GGML_ABORT("failed to decode, ret = %d\n", ret);
-//	}
-//	llama_batch_free(batch);
-//
-//	int seq2_pos = n_p;
-//
-//	std::string summary = "";
-//	bool output = false;
-//	while (true){
-//		llama_token newTokenId = llama_sampler_sample(smpl, ctx, -1);
-//		llama_sampler_accept(smpl, newTokenId);
-//		//std::cout << "test 1\n";
-//
-//		if (llama_vocab_is_eog(vocab, newTokenId)){
-//			break;
-//		}
-//
-//		//std::cout << "test 2\n";
-//		char buf[256];
-//		int n = llama_token_to_piece(vocab, newTokenId, buf, sizeof(buf), 0, true);
-//		if (n < 0){
-//			GGML_ABORT("failed to convert token to piece\n");
-//		}
-//		std::string piece(buf, n);
-//		if (output){
-//			std::cout << piece << std::flush;
-//			summary += piece;
-//		}
-//		//std::cout << "piece: " << piece << std::endl;
-//		
-//		if (piece == "<channel|>") output = true;
-//	
-//		llama_batch gen_batch = llama_batch_init(1, 0, 1);
-//		gen_batch.n_tokens = 1;
-//		gen_batch.token[0] = newTokenId;
-//		gen_batch.n_seq_id[0] = 1;
-//		gen_batch.seq_id[0][0] = 0;
-//		gen_batch.pos[0] = seq2_pos++;
-//		gen_batch.logits[0] = 1;
-//
-//		llama_decode(ctx, gen_batch);
-//		llama_batch_free(gen_batch);
-//	}
-//
-//
-//	llama_memory_seq_rm(mem, 0, -1, -1);
-//	//std::cout << summary <<std::endl;
-//	return summary;
-//}
+
 
 int Llm::injectSummary(std::string summarized_chat){
-	std::vector<llama_token> summaryToken(4096);
+	llama_tokens summaryToken(4096);
 	int n_summaryToken = llama_tokenize(vocab, summarized_chat.c_str(), summarized_chat.length(), summaryToken.data(), summaryToken.size(), true, true);
 	summaryToken.resize(n_summaryToken);
 	llama_batch batch = llama_batch_init(n_summaryToken, 0, 1);
@@ -355,8 +308,24 @@ int Llm::deleteMemory(){
 }
 
 
-
 Llm::~Llm(){
+	n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
+	if (n_ctxUsed > 0){
+		if (llama_state_save_file(ctx, ctxBin.c_str() , nullptr, 0)){
+			std::cout << "saved " << n_ctxUsed << " ctx.\n";
+			std::fstream file;
+			file.open("..\\models\\bin\\data.bin", std::ios::out | std::ios::binary);
+			file.write(reinterpret_cast<char*>(&n_sysToken), sizeof(n_sysToken));
+			file.write(reinterpret_cast<char*>(&n_sumSysToken), sizeof(n_sysToken));
+			file.write(reinterpret_cast<char*>(&summarizedChat), sizeof(n_sysToken));
+
+
+		} else{
+			std::cerr << "failed to save ctx";
+		}
+	} else{
+		std::filesystem::remove(ctxBin.c_str());
+	}
 	llama_sampler_free(smpl);
 	llama_model_free(model);
 	llama_free(ctx);

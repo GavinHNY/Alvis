@@ -21,17 +21,18 @@ int main() {
 	std::stringstream systemPromptBuf;
 	systemPromptBuf << systemPromptFile.rdbuf();
 	std::string systemPrompt = systemPromptBuf.str();
+
 	std::ifstream sumSystemPromptFile("..\\models\\sum_system_prompt.txt");
 	std::stringstream sumSystemPromptBuf;
 	sumSystemPromptBuf << sumSystemPromptFile.rdbuf();
 	std::string sumSystemPrompt = sumSystemPromptBuf.str();
 
 	//create LLM object
-	int mainChannel = 10;
+	int mainChannel = 1;
 
 	LLM.emplace_back("..\\models\\gemma-4-E4B-it.gguf", systemPrompt, sumSystemPrompt, &database, mainChannel);
 	database.pushChat(mainChannel, -1, systemPrompt);
-	database.pushChat(mainChannel, 0, LLM.at(0).getOutput(10));
+	database.pushChat(mainChannel, 0, LLM.at(0).getOutput(mainChannel));
 	std::cout << std::endl;
 	//main chat loop
 	bool running = true;
@@ -48,7 +49,7 @@ int main() {
 			if (prompt == "/clearChat" || prompt == "/deleteChat"){
 				database.deleteChat(mainChannel);
 				LLM.at(0).deleteMemory();
-				std::cout << "done!\n";
+				std::cout << "done\n";
 				continue;
 			}
 			if (prompt == "/free"){
