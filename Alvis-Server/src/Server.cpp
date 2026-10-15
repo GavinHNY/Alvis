@@ -7,7 +7,7 @@
 #include "Alvis.h"
 
 bool running = true;
-
+std::string modelsFolder = "D:\\dev\\Alvis\\models\\";
 
 enum class msgTypes : uint32_t {
 	key,
@@ -30,6 +30,10 @@ public:
 		msg.header.id = msgTypes::text;
 		msg << text;
 		messageAllClient(msg);
+	}
+
+	void notifyQuit() {
+		m_qMessagesIn.notifyQuit();
 	}
 
 protected:
@@ -89,7 +93,7 @@ protected:
 			rMsg.header.id = msgTypes::text;
 			std::string reply = m_alvis->sendText(1, client->getID(), text).message;
 			rMsg << reply;
-			std::cout << reply;
+			std::cout << "[Alvis]: " << reply << std::endl;
 			messageClient(client, rMsg);
 		}
 		break;
@@ -111,8 +115,8 @@ void serverConsoleInput(Database& database, Llm& LLM, int mainChannel, TcpServer
 		if (prompt != "") {
 			if (prompt == "/bye" || prompt == "/exit") {
 				running = false;
-				tcpServer.stop();
-				break;
+				tcpServer.notifyQuit();
+				return;
 			}
 			if (prompt == "/clearChat" || prompt == "/deleteChat") {
 				database.deleteChat(mainChannel);
@@ -141,6 +145,7 @@ void serverConsoleInput(Database& database, Llm& LLM, int mainChannel, TcpServer
 			}
 		}
 	}
+	return;
 }
 
 
@@ -148,16 +153,18 @@ void serverConsoleInput(Database& database, Llm& LLM, int mainChannel, TcpServer
 
 int main() {
 
-	Database database("..\\models\\Alvis.db");
+	Database database(modelsFolder + "Alvis.db");
 	//Create main model
 	// 
 		//create LLM object
 	int mainChannel = 1;
-	Llm LLM("..\\models\\gemma-4-E4B-it.gguf");
+	Llm LLM(modelsFolder, "gemma-4-E4B-it.gguf");
 	Alvis alvis(&LLM, &database, 10);
 
-	alvis.readSystemPrompt("..\\models\\system_prompt.txt");
-	alvis.readSystemPrompt("..\\models\\sum_system_prompt.txt");
+	if (!alvis.loadModelBin(modelsFolder)) {
+		alvis.readSystemPrompt(modelsFolder + "system_prompt.txt");
+		alvis.readSystemPrompt(modelsFolder + "sum_system_prompt.txt");
+	}
 
 
 	std::cout << "please set a pasword: \n";
@@ -173,10 +180,12 @@ int main() {
 	while (running) {
 		tcpServer.update(-1, true);
 	}
-	std::cout << "stopping\n";
 	if (serverConsoleInputThread.joinable()){
-		serverConsoleInputThread.join();
+		std::cout << "trying to detach\n";
+		serverConsoleInputThread.detach();
 	}
+	std::cout << "stopping\n";
+
 			//std::string formattedPrompt = LLM.applyTemplate(prompt, false, true);
 			////std::cout << formattedPrompt << std::endl;
 			//if (LLM.prompt(mainChannel, formattedPrompt, true, true) == 1){

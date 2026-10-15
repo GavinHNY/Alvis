@@ -6,20 +6,20 @@ void custom_log_callback(enum ggml_log_level level, const char *text, void *user
 	}
 }
 
-Llm::Llm(const std::string &model_path){
+Llm::Llm(std::string modelsFolder, std::string modelName){
 	SetConsoleOutputCP(CP_UTF8);
 	SetConsoleCP(CP_UTF8);
 	llama_log_set(custom_log_callback, nullptr);
 	llama_backend_init();
 
-	modelPath = model_path;
+	m_modelsFolder = modelsFolder;
 
 	llama_model_params modelParams = llama_model_default_params();
 
 	modelParams.n_gpu_layers = 99;
 	modelParams.main_gpu = 0;
 
-	model = llama_model_load_from_file(model_path.c_str(), modelParams);
+	model = llama_model_load_from_file((m_modelsFolder + modelName).c_str(), modelParams);
 
 	if (model == NULL){
 		std::cerr << "Error: unable to load model";
@@ -62,50 +62,26 @@ Llm::Llm(const std::string &model_path){
 	llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.95f, 1));
 	llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 	mem = llama_get_memory(ctx);
-
-	//std::cout << ready_sys_prompt << std::endl;
-	
-
-	//size_t n_tokens_out = 0;
-	//if (llama_state_load_file(ctx, ctxBin.c_str(), nullptr, 0, &n_tokens_out)){
-	//	n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
-	//	std::fstream file;
-	//	file.open("..\\models\\bin\\data.bin", std::ios::in | std::ios::binary);
-	//	file.read(reinterpret_cast<char *>(&n_sysToken), sizeof(n_sysToken));
-	//	file.read(reinterpret_cast<char *>(&n_sumSysToken), sizeof(n_sysToken));
-	//	file.read(reinterpret_cast<char *>(&summarizedChat), sizeof(n_sysToken));
-
-	//	std::cout << "ctx loaded, " << n_ctxUsed << "/" << n_ctx << std::endl;
-	//} else{
-	//	std::string ready_sys_prompt = applyTemplate(system_prompt, true, add_generation_prompt);
-	//	n_sysToken = -llama_tokenize(vocab, ready_sys_prompt.c_str(), ready_sys_prompt.length(), nullptr, 0, true, true);
-	//	prompt(channelId, ready_sys_prompt);
-
-	//	std::string ready_sumSys_prompt = applyTemplate(sumSystem_prompt, true, false);
-	//	n_sumSysToken = -llama_tokenize(vocab, ready_sumSys_prompt.c_str(), ready_sumSys_prompt.length(), nullptr, 0, true, true);
-	//	prompt(0, ready_sumSys_prompt, false, false);
-	//	summarizedChat = 1;
-	//}
-	
-
 }
 
-bool Llm::loadModel() {
-size_t n_tokens_out = 0;
-if (llama_state_load_file(ctx, ctxBin.c_str(), nullptr, 0, &n_tokens_out)){
-	n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
-	std::fstream file;
-	file.open("..\\models\\bin\\data.bin", std::ios::in | std::ios::binary);
-	file.read(reinterpret_cast<char *>(&n_sysToken), sizeof(n_sysToken));
-	file.read(reinterpret_cast<char *>(&n_sumSysToken), sizeof(n_sysToken));
-	file.read(reinterpret_cast<char *>(&summarizedChat), sizeof(n_sysToken));
 
-	std::cout << "ctx loaded, " << n_ctxUsed << "/" << n_ctx << std::endl;
-	return true;
-} else{
-	return false;
+bool Llm::loadModelBin() {
+	size_t n_tokens_out = 0;
+	if (llama_state_load_file(ctx, (m_modelsFolder + "bin\\Alvis.bin").c_str(), nullptr, 0, &n_tokens_out)) {
+		n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
+		std::fstream file;
+		file.open(m_modelsFolder + "bin\\data.bin", std::ios::in | std::ios::binary);
+		file.read(reinterpret_cast<char *>(&n_sysToken), sizeof(n_sysToken));
+		file.read(reinterpret_cast<char *>(&n_sumSysToken), sizeof(n_sysToken));
+		file.read(reinterpret_cast<char *>(&summarizedChat), sizeof(n_sysToken));
+
+		std::cout << "ctx loaded, " << n_ctxUsed << "/" << n_ctx << std::endl;
+		return true;
+	} else{
+		return false;
+	}
 }
-}
+
 
 std::string Llm::applyTemplate(const std::string prompt, bool is_system, bool add_generation_prompt){
 	std::vector<common_chat_msg> rawMessages;
@@ -325,12 +301,13 @@ int Llm::deleteMemory(){
 
 
 Llm::~Llm(){
+	std::cout << "saving LLM\n";
 	n_ctxUsed = llama_memory_seq_pos_max(mem, channelId);
 	if (n_ctxUsed > 0){
-		if (llama_state_save_file(ctx, ctxBin.c_str() , nullptr, 0)){
-			std::cout << "saved " << n_ctxUsed << " ctx.\n";
+		if (llama_state_save_file(ctx, (m_modelsFolder + "bin\\Alvis.bin").c_str(), nullptr, 0)) {
+			std::cout << "saved in "<< m_modelsFolder + "bin\\Alvis.bin  " << n_ctxUsed << " ctx.\n";
 			std::fstream file;
-			file.open("..\\models\\bin\\data.bin", std::ios::out | std::ios::binary);
+			file.open(m_modelsFolder + "bin\\data.bin", std::ios::out | std::ios::binary);
 			file.write(reinterpret_cast<char*>(&n_sysToken), sizeof(n_sysToken));
 			file.write(reinterpret_cast<char*>(&n_sumSysToken), sizeof(n_sysToken));
 			file.write(reinterpret_cast<char*>(&summarizedChat), sizeof(n_sysToken));
@@ -340,7 +317,7 @@ Llm::~Llm(){
 			std::cerr << "failed to save ctx";
 		}
 	} else{
-		std::filesystem::remove(ctxBin.c_str());
+		std::filesystem::remove((m_modelsFolder + "bin\\Alvis.bin").c_str());
 	}
 	llama_sampler_free(smpl);
 	llama_model_free(model);

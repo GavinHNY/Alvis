@@ -9,12 +9,16 @@ Alvis::Alvis(Llm *llm, Database *db, int max_channel){
 }
 
 void Alvis::readSystemPrompt(std::string filepath){
-	std::ifstream systemPromptFile("..\\models\\system_prompt.txt");
+	std::ifstream systemPromptFile(filepath);
 	std::stringstream systemPromptBuf;
 	systemPromptBuf << systemPromptFile.rdbuf();
 	systemPrompt.push_back(systemPromptBuf.str());
-	if(!m_llm->loadModel())
-		m_llm->prompt(1, systemPrompt[0], false, false);
+	m_llm->prompt(1, systemPrompt[0], false, false);
+	//m_llm->prompt(0, systemPrompt[1], false, false);
+}
+
+bool Alvis::loadModelBin(std::string modelsFolder){
+	return m_llm->loadModelBin();
 }
 
 

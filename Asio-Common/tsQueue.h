@@ -58,10 +58,16 @@ namespace net {
 		}
 
 		void wait() {
-			while (empty()) {
+			while (empty() && !m_bRunning) {
 				std::unique_lock<std::mutex> ul(muxBlocking);
 				cvBlocking.wait(ul);
 			}
+		}
+
+		void notifyQuit() {
+			std::unique_lock<std::mutex> ul(muxBlocking);
+			m_bRunning = false;
+			cvBlocking.notify_one();
 		}
 
 
@@ -71,5 +77,7 @@ namespace net {
 
 		std::condition_variable cvBlocking;
 		std::mutex muxBlocking;
+
+		bool m_bRunning = true;
 	};
 }

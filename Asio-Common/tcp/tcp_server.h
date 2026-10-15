@@ -37,10 +37,15 @@ namespace net {
 		}
 
 		bool stop() {
+			m_qMessagesIn.notifyQuit();
+			m_asioAcceptor.close();
+
 			m_asioContext.stop();
-
-			if (m_threadContext.joinable()) m_threadContext.join();
-
+			m_umapConnections.clear();
+			
+			if (m_threadContext.joinable()) {
+				m_threadContext.join();
+			}
 			std::cout << "[SERVER] Stopped!\n";
 			return true;
 		}
@@ -63,6 +68,9 @@ namespace net {
 					}
 
 				} else {
+					if (ec = asio::error::operation_aborted) {
+						return;
+					}
 					std::cout << "[SERVER] New Connection Error: " << ec.message() << std::endl;
 				}
 				waitForClientConnection();

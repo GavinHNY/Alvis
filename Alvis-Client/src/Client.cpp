@@ -60,6 +60,8 @@ void inputThread(TcpClient* tcpClient) {
 
 
 int main() {
+	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleCP(CP_UTF8);
 	std::string key;
 	std::cout << "password: \n";
 	std::getline(std::cin, key);

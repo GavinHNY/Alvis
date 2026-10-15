@@ -14,10 +14,10 @@
 class Llm
 {	
 private:
-	int channelId;
+	int channelId = 1;
 	std::string sysPrompt;
 	std::string sumSysPrompt;
-	std::string modelPath;
+	std::string m_modelsFolder;
 
 	int n_ctx = 32768;
 	int n_ctxUsed;
@@ -45,7 +45,6 @@ private:
 
 	int injectSummary(std::string summarized_chat);
 
-	std::string ctxBin = "..\\models\\bin\\Alvis.bin";
 
 public:
 	Llm(Llm &&) noexcept = default;
@@ -57,10 +56,10 @@ public:
 
 
 
-	Llm(const std::string& model_path);
+	Llm(std::string modelsFolder, std::string modelName);
 	~Llm();
 
-	bool loadModel();
+	bool loadModelBin();
 
 	std::string applyTemplate(const std::string prompt, bool is_system = false, bool add_generation_prompt = true);
 	int prompt(int seq, std::string &prompt, bool print = true, bool generate_output = true);

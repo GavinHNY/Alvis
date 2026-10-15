@@ -28,6 +28,7 @@ public:
 	Alvis(Llm *llm, Database *db, int max_channel);
 	
 	void readSystemPrompt(std::string filepath);
+	bool loadModelBin(std::string modelsFolder);
 	textOutput sendText(int pUserId, int clientId, std::string pText);
 
 private:

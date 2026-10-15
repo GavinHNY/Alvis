@@ -19,7 +19,13 @@ namespace net {
 		}
 
 		virtual ~Connection() {
-
+			if (m_timeoutTimer) {
+				m_timeoutTimer->cancel();
+			}
+			if (m_socket.is_open()) {
+				std::error_code ec;
+				m_socket.close(ec);
+			}
 		}
 
 		uint32_t getID() const {
