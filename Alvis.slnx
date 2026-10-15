@@ -2,8 +2,11 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="Alvis/Alvis.vcxproj" Id="970187bb-32a8-47b8-8bb9-990122ef4404">
-    <BuildDependency Project="external/llama.cpp/build/src/llama.vcxproj" />
+  <Project Path="Alvis-Client/Alvis-Client.vcxproj" Id="80e02488-59ab-4629-be0a-c63a5449956c">
+    <BuildDependency Project="Asio-Common/Asio-Common.vcxproj" />
   </Project>
-  <Project Path="external/llama.cpp/build/src/llama.vcxproj" Id="df8d4f14-1f6b-3239-a169-5b4833e4bb6f" />
+  <Project Path="Alvis-Server/Alvis-Server.vcxproj" Id="970187bb-32a8-47b8-8bb9-990122ef4404">
+    <BuildDependency Project="Asio-Common/Asio-Common.vcxproj" />
+  </Project>
+  <Project Path="Asio-Common/Asio-Common.vcxproj" Id="43c01747-4fa5-4d23-b1f2-8e77739092a5" />
 </Solution>
